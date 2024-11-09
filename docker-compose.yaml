@@ -8,6 +8,10 @@ services:
             REDIS_HOST: redis
             REDIS_PORT: 6379
             REDIS_PASSWORD: ${REDIS_PASSWORD}
+            RABBITMQ_HOST: rabbitmq
+            RABBITMQ_PORT: 5672
+            RABBITMQ_USER: ${RABBITMQ_DEFAULT_USER}
+            RABBITMQ_PASS: ${RABBITMQ_DEFAULT_PASS}
         ports:
             - 3000:3000
         depends_on:
@@ -42,6 +46,17 @@ services:
         expose:
             - "6379:6379"
 
+    rabbitmq:
+        image: rabbitmq:3-management
+        container_name: 'rabbitmq'
+        environment:
+            RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+            RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+        ports:
+            - 5672:5672
+            - 15672:15672
+
+    # Monitoring tools
     redis-insight:
         image: redis/redisinsight:latest
         ports:
