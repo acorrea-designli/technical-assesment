@@ -1,0 +1,35 @@
+services:
+    server:
+        build:
+            context: ./technical-assesment
+        secrets:
+            - db-password
+        environment:
+            NODE_ENV: production
+            DATABASE_URL: postgres://postgres:$(cat /run/secrets/db-password)@db:5432/ta
+        ports:
+            - 3000:3000
+        depends_on:
+            db:
+                condition: service_healthy
+
+    db:
+        image: postgres
+        restart: always
+        user: postgres
+        secrets:
+            - db-password
+        environment:
+            - POSTGRES_DB=ta
+            - POSTGRES_PASSWORD_FILE=/run/secrets/db-password
+        expose:
+            - 5432
+        healthcheck:
+            test: ["CMD", "pg_isready"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+secrets:
+    db-password:
+        file: db/password.txt
