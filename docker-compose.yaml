@@ -2,26 +2,27 @@ services:
     server:
         build:
             context: ./technical-assesment
-        secrets:
-            - db-password
         environment:
             NODE_ENV: production
-            DATABASE_URL: postgres://postgres:$(cat /run/secrets/db-password)@db:5432/ta
+            DATABASE_URL: ${DATABASE_URL}
+            REDIS_HOST: redis
+            REDIS_PORT: 6379
+            REDIS_PASSWORD: ${REDIS_PASSWORD}
         ports:
             - 3000:3000
         depends_on:
             db:
+                condition: service_healthy
+            redis:
                 condition: service_healthy
 
     db:
         image: postgres
         restart: always
         user: postgres
-        secrets:
-            - db-password
         environment:
             - POSTGRES_DB=ta
-            - POSTGRES_PASSWORD_FILE=/run/secrets/db-password
+            - POSTGRES_PASSWORD=${DB_PASSWORD}
         expose:
             - 5432
         healthcheck:
@@ -30,6 +31,18 @@ services:
             timeout: 5s
             retries: 5
 
-secrets:
-    db-password:
-        file: db/password.txt
+    redis:
+        image: redis
+        restart: always
+        command: bash -c 'redis-server --save 20 1 --requirepass "$$REDIS_PASSWORD"'
+        environment:
+            - REDIS_PASSWORD=${REDIS_PASSWORD}
+        healthcheck:
+            test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+        expose:
+            - "6379:6379"
+
+    redis-insight:
+        image: redis/redisinsight:latest
+        ports:
+            - 5540:5540
