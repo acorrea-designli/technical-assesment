@@ -46,16 +46,6 @@ services:
         expose:
             - "6379:6379"
 
-    rabbitmq:
-        image: rabbitmq:3-management
-        container_name: 'rabbitmq'
-        environment:
-            RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
-            RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
-        ports:
-            - 5672:5672
-            - 15672:15672
-
     # Monitoring tools
     redis-insight:
         image: redis/redisinsight:latest

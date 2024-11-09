@@ -14,19 +14,17 @@ Before running the project, you need to create a `.env` file in the root directo
 DB_PASSWORD=your_password
 DATABASE_URL=postgres://postgres:your_password@localhost:5432/db
 REDIS_PASSWORD=your_password
-RABBITMQ_DEFAULT_USER=your_user
-RABBITMQ_DEFAULT_PASS=your_password
 ```
 
 > [!IMPORTANT]
-> There is no need to deploy a PostgreSQL, Redis, or RabbitMQ server. The project uses Docker to create containers for these services.
+> There is no need to deploy a PostgreSQL or Redis server. The project uses Docker to create containers for these services.
 
 ### Running the project
 
 After installing Docker, you can run the project by executing the following command in the root directory of the project:
 
 ```bash
-docker-compose up
+docker compose up
 ```
 
 This command will build the Docker image and start the container. The project will be available at `http://localhost:3000`.
