@@ -19,6 +19,14 @@ export class UserService {
   async create(createUserDto: CreateUserDto): Promise<User> {
     const hashedPassword = await this.passwordManagerService.hashPassword(createUserDto.password)
 
+    const role = await this.prismaService.role.findUnique({
+      where: {
+        name: createUserDto.role,
+      },
+    })
+
+    if (!role) throw new HttpException('Role not found', 404)
+
     const existingUser = await this.prismaService.user.findUnique({
       where: {
         email: createUserDto.email,
@@ -39,10 +47,23 @@ export class UserService {
         email: createUserDto.email,
         password: hashedPassword,
         name: createUserDto.name,
+        Role: {
+          connect: {
+            id: role.id,
+          },
+        },
+      },
+      include: {
+        Role: true,
       },
     })
 
-    return plainToInstance(User, user)
+    const result = {
+      ...user,
+      role: user.Role.name,
+    }
+
+    return plainToInstance(User, result)
   }
 
   async findAll(): Promise<User[]> {
@@ -50,9 +71,15 @@ export class UserService {
       where: {
         deletedAt: null,
       },
+      include: {
+        Role: true,
+      },
     })
 
-    return plainToInstance(User, users)
+    return plainToInstance(
+      User,
+      users.map((user) => ({ ...user, role: user.Role.name })),
+    )
   }
 
   async findOne(id: string): Promise<User> {
@@ -60,11 +87,19 @@ export class UserService {
       where: {
         id,
       },
+      include: {
+        Role: true,
+      },
     })
 
     if (!user) throw new HttpException('User not found', 404)
 
-    return plainToInstance(User, user)
+    const result = {
+      ...user,
+      role: user.Role.name,
+    }
+
+    return plainToInstance(User, result)
   }
 
   async findByEmail(email: string): Promise<User> {
@@ -72,11 +107,19 @@ export class UserService {
       where: {
         email,
       },
+      include: {
+        Role: true,
+      },
     })
 
     if (!user) throw new HttpException('User not found', 404)
 
-    return plainToInstance(User, user)
+    const result = {
+      ...user,
+      role: user.Role.name,
+    }
+
+    return plainToInstance(User, result)
   }
 
   async validateUser(email: string, password: string): Promise<Boolean> {

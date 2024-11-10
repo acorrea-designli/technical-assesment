@@ -1,3 +1,4 @@
+import { Roles } from '@commons/enums/roles.enum'
 import { Exclude } from 'class-transformer'
 
 export class User {
@@ -6,6 +7,7 @@ export class User {
   name: string
   updatedAt: Date
   createdAt: Date
+  role: Roles
 
   @Exclude()
   deletedAt?: Date

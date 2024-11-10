@@ -50,8 +50,18 @@ describe('UserService', () => {
       updatedAt: new Date(),
       deletedAt: null,
       password: 'hashedPassword',
+      roleId: faker.string.uuid(),
+      Role: {
+        id: faker.string.uuid(),
+        name: 'admin',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+      },
     }
 
+    prismaMock.role.findUnique.mockResolvedValue(response.Role)
+    prismaMock.user.findUnique.mockResolvedValue(null)
     prismaMock.user.create.mockResolvedValue(response)
 
     const result = await service.create(createUserDto)
@@ -62,16 +72,58 @@ describe('UserService', () => {
         email: createUserDto.email,
         name: createUserDto.name,
         password: 'hashedPassword',
+        Role: {
+          connect: {
+            id: response.Role.id,
+          },
+        },
+      },
+      include: {
+        Role: true,
       },
     })
     expect(result).toEqual(
       expect.objectContaining({
         email: createUserDto.email,
         name: createUserDto.name,
+        role: response.Role.name,
       }),
     )
 
     expect(prismaMock.user.create).toHaveBeenCalledTimes(1)
+  })
+
+  it('should throw error when user already exists', async () => {
+    const createUserDto = UserFactory.create(1)[0]
+
+    const { password, ...createUserDtoWithoutPassword } = createUserDto
+    const response = {
+      ...createUserDtoWithoutPassword,
+      id: faker.string.uuid(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+      password: 'hashedPassword',
+      roleId: faker.string.uuid(),
+      Role: {
+        id: faker.string.uuid(),
+        name: 'admin',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+      },
+    }
+
+    prismaMock.role.findUnique.mockResolvedValue(response.Role)
+    prismaMock.user.findUnique.mockResolvedValue(response)
+
+    try {
+      await service.create(createUserDto)
+    } catch (error) {
+      expect(error.message).toBe('User already exists')
+    }
+
+    expect(prismaMock.user.create).not.toHaveBeenCalled()
   })
 
   it('should validate user', async () => {
@@ -84,6 +136,14 @@ describe('UserService', () => {
       updatedAt: new Date(),
       deletedAt: null,
       password: 'hashedPassword',
+      roleId: faker.string.uuid(),
+      Role: {
+        id: faker.string.uuid(),
+        name: 'admin',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+      },
     }
 
     prismaMock.user.findUnique.mockResolvedValue(dbUser)
