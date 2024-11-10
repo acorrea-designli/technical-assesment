@@ -1,24 +1,24 @@
 services:
-    server:
-        build:
-            context: ./technical-assesment
-        environment:
-            NODE_ENV: production
-            DATABASE_URL: ${DATABASE_URL}
-            REDIS_HOST: redis
-            REDIS_PORT: 6379
-            REDIS_PASSWORD: ${REDIS_PASSWORD}
-            RABBITMQ_HOST: rabbitmq
-            RABBITMQ_PORT: 5672
-            RABBITMQ_USER: ${RABBITMQ_DEFAULT_USER}
-            RABBITMQ_PASS: ${RABBITMQ_DEFAULT_PASS}
-        ports:
-            - 3000:3000
-        depends_on:
-            db:
-                condition: service_healthy
-            redis:
-                condition: service_healthy
+    # server:
+    #     build:
+    #         context: ./technical-assesment
+    #     environment:
+    #         NODE_ENV: production
+    #         DATABASE_URL: ${DATABASE_URL}
+    #         REDIS_HOST: redis
+    #         REDIS_PORT: 6379
+    #         REDIS_PASSWORD: ${REDIS_PASSWORD}
+    #         RABBITMQ_HOST: rabbitmq
+    #         RABBITMQ_PORT: 5672
+    #         RABBITMQ_USER: ${RABBITMQ_DEFAULT_USER}
+    #         RABBITMQ_PASS: ${RABBITMQ_DEFAULT_PASS}
+    #     ports:
+    #         - 3000:3000
+    #     depends_on:
+    #         db:
+    #             condition: service_healthy
+    #         redis:
+    #             condition: service_healthy
 
     db:
         image: postgres
@@ -27,13 +27,15 @@ services:
         environment:
             - POSTGRES_DB=ta
             - POSTGRES_PASSWORD=${DB_PASSWORD}
-        expose:
-            - 5432
+        ports:
+            - "5432:5432"
         healthcheck:
             test: ["CMD", "pg_isready"]
             interval: 10s
             timeout: 5s
             retries: 5
+        networks:
+            - backend
 
     redis:
         image: redis
@@ -43,11 +45,19 @@ services:
             - REDIS_PASSWORD=${REDIS_PASSWORD}
         healthcheck:
             test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
-        expose:
+        ports:
             - "6379:6379"
+        networks:
+            - backend
 
     # Monitoring tools
     redis-insight:
         image: redis/redisinsight:latest
         ports:
             - 5540:5540
+        networks:
+            - backend
+
+networks:
+    backend:
+        driver: bridge

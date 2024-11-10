@@ -12,7 +12,7 @@ Before running the project, you need to create a `.env` file in the root directo
 
 ```env
 DB_PASSWORD=your_password
-DATABASE_URL=postgres://postgres:your_password@localhost:5432/db
+DATABASE_URL=postgres://postgres:your_password@localhost:5432/backend
 REDIS_PASSWORD=your_password
 ```
 
