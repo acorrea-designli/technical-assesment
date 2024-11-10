@@ -22,6 +22,17 @@ model User {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
   Order     Order[]
+  Role      Role?     @relation(fields: [roleId], references: [id])
+  roleId    String?
+}
+
+model Role {
+  id        String    @id @default(cuid())
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  User      User[]
 }
 
 model Product {

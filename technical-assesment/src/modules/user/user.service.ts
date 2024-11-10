@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { HttpException, Injectable, Logger } from '@nestjs/common'
 import { CreateUserDto } from './dto/create-user.dto'
 import { PrismaService } from '@commons/prisma/prisma.service'
 import { User } from './entities/user.entity'
@@ -7,7 +7,7 @@ import { plainToInstance } from 'class-transformer'
 
 @Injectable()
 export class UserService {
-  readonly logger: Logger
+  private readonly logger: Logger
 
   constructor(
     readonly passwordManagerService: PasswordManagerService,
@@ -18,6 +18,21 @@ export class UserService {
 
   async create(createUserDto: CreateUserDto): Promise<User> {
     const hashedPassword = await this.passwordManagerService.hashPassword(createUserDto.password)
+
+    const existingUser = await this.prismaService.user.findUnique({
+      where: {
+        email: createUserDto.email,
+      },
+    })
+
+    if (existingUser?.deletedAt === null) throw new HttpException('User already exists', 400)
+    else if (existingUser?.deletedAt) {
+      await this.prismaService.user.delete({
+        where: {
+          id: existingUser.id,
+        },
+      })
+    }
 
     const user = await this.prismaService.user.create({
       data: {
@@ -47,6 +62,8 @@ export class UserService {
       },
     })
 
+    if (!user) throw new HttpException('User not found', 404)
+
     return plainToInstance(User, user)
   }
 
@@ -56,6 +73,8 @@ export class UserService {
         email,
       },
     })
+
+    if (!user) throw new HttpException('User not found', 404)
 
     return plainToInstance(User, user)
   }
@@ -68,7 +87,7 @@ export class UserService {
       },
     })
 
-    if (!user) return null
+    if (!user) throw new HttpException('User not found', 404)
 
     return await this.passwordManagerService.comparePassword(password, user.password)
   }
