@@ -16,6 +16,17 @@
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
-    "noFallthroughCasesInSwitch": false
+    "noFallthroughCasesInSwitch": false,
+    "esModuleInterop": true,
+    "paths": {
+      "@modules/*": ["./src/modules/*"],
+      "@commons/*": ["./src/commons/*"]
+    },
+    "resolveJsonModule": true
+  },
+  "include": ["src", "prisma", "test", "./global.d.ts", "src/node generate-schema.js", "scripts"],
+  "exclude": ["node_modules"],
+  "ts-node": {
+    "require": ["tsconfig-paths/register"]
   }
 }
