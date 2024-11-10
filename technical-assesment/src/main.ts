@@ -27,6 +27,7 @@ async function bootstrap() {
     .setTitle('Technical Assesment')
     .setDescription('Technical Assesment API, provides an ecommerce API')
     .setVersion('1.0')
+    .addBearerAuth()
     .build()
 
   const documentFactory = () => SwaggerModule.createDocument(app, config)

@@ -1,6 +1,6 @@
 import { UserService } from '@modules/user/user.service'
 import { HttpException, Injectable, Logger } from '@nestjs/common'
-import { SignInDto } from './dto/sign-in.dtio'
+import { SignInDto } from './dto/sign-in.dto'
 import { JwtService } from '@nestjs/jwt'
 import { Jwt } from './entities/jwt.entity'
 import { ExceptionHandler } from '@commons/exeptions/handler'
@@ -24,7 +24,7 @@ export class AuthService {
 
       const user = await this.userService.findByEmail(signInDto.email)
 
-      const payload = { email: user.email, sub: user.id, name: user.name }
+      const payload = { email: user.email, sub: user.id, name: user.name, role: user.role }
 
       return {
         access_token: this.jwtService.sign(payload),
@@ -38,7 +38,7 @@ export class AuthService {
     try {
       const user = await this.userService.create(signUpDto)
 
-      const payload = { email: user.email, sub: user.id, name: user.name }
+      const payload = { email: user.email, sub: user.id, name: user.name, role: user.role }
 
       return {
         access_token: this.jwtService.sign(payload),
