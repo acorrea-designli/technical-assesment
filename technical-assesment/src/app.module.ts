@@ -5,6 +5,7 @@ import { ModulesModule } from './modules/modules.module'
 import { CommonsModule } from './commons/commons.module'
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
 import { APP_GUARD } from '@nestjs/core'
+import { EventEmitterModule } from '@nestjs/event-emitter'
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { APP_GUARD } from '@nestjs/core'
         limit: parseInt(process.env.THROTTLER_LIMIT),
       },
     ]),
+    EventEmitterModule.forRoot(),
   ],
   controllers: [AppController],
   providers: [
