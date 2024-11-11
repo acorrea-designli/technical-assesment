@@ -3,10 +3,27 @@ import { AppController } from './app.controller'
 import { AppService } from './app.service'
 import { ModulesModule } from './modules/modules.module'
 import { CommonsModule } from './commons/commons.module'
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
+import { APP_GUARD } from '@nestjs/core'
 
 @Module({
-  imports: [ModulesModule, CommonsModule],
+  imports: [
+    ModulesModule,
+    CommonsModule,
+    ThrottlerModule.forRoot([
+      {
+        ttl: parseInt(process.env.THROTTLER_TTL),
+        limit: parseInt(process.env.THROTTLER_LIMIT),
+      },
+    ]),
+  ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}
