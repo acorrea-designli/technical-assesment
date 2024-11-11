@@ -1,3 +1,4 @@
+import { Product } from '@modules/product-manager/product/entities/product.entity'
 import { Exclude, Expose } from 'class-transformer'
 
 export class Order {
@@ -20,10 +21,7 @@ export class Order {
   deletedAt: Date
 }
 
-export class OrderProduct {
-  @Expose()
-  productId: string
-
+export class OrderProduct extends Product {
   @Expose()
   quantity: number
 }

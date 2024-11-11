@@ -118,4 +118,37 @@ describe('PaymentService', () => {
 
     await expect(service.getPendingOrderPayment(orderId, prismaMock)).rejects.toThrow('Order already paid')
   })
+
+  it('should return user pending payment orders', async () => {
+    const userId = 'userId'
+
+    const payments = [
+      {
+        id: 'paymentId1',
+        orderId: 'orderId1',
+        userId,
+        status: PaymentStatus.PENDING,
+        paymentMethod: 'paymentMethod',
+        deletedAt: null,
+        updatedAt: new Date(),
+        createdAt: new Date(),
+      },
+      {
+        id: 'paymentId2',
+        orderId: 'orderId2',
+        userId,
+        status: PaymentStatus.PENDING,
+        paymentMethod: 'paymentMethod',
+        deletedAt: null,
+        updatedAt: new Date(),
+        createdAt: new Date(),
+      },
+    ]
+
+    prismaMock.payment.findMany.mockResolvedValue(payments)
+
+    const response = await service.userPendingPaymentOrders(userId, prismaMock)
+
+    expect(response).toEqual(['orderId1', 'orderId2'])
+  })
 })

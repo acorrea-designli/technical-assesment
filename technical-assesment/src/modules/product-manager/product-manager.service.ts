@@ -7,6 +7,8 @@ import { ProductStock } from './entities/product-stock.entity'
 import { ExceptionHandler } from '@commons/exeptions/handler'
 import { UpdateProductStockDto } from './dto/update-product-stock.dto'
 import { plainToInstance } from 'class-transformer'
+import { TransactionClient } from '@commons/prisma/prisma.types'
+import { OnEvent } from '@nestjs/event-emitter'
 
 @Injectable()
 export class ProductManagerService {
@@ -58,7 +60,7 @@ export class ProductManagerService {
         ...product,
         stock: product.Stock.reduce((acc, stock) => acc + stock.available, 0),
       }))
-      
+
       return plainToInstance(ProductStock, result, { excludeExtraneousValues: true })
     } catch (error) {
       ExceptionHandler.handle(error, this.logger)
@@ -130,6 +132,121 @@ export class ProductManagerService {
 
       await this.prismaService.stock.deleteMany({
         where: { productId: id },
+      })
+    } catch (error) {
+      ExceptionHandler.handle(error, this.logger)
+    }
+  }
+
+  async canProductsBeReserved(
+    products: { productId: string; quantity: number }[],
+    prisma?: TransactionClient,
+  ): Promise<void> {
+    try {
+      const prismaClient = prisma || this.prismaService
+
+      const productsData = await prismaClient.product.findMany({
+        where: { id: { in: products.map((product) => product.productId) }, deletedAt: null },
+        include: { Stock: true },
+      })
+
+      for (const { productId, quantity } of products) {
+        const product = productsData.find((product) => product.id === productId)
+
+        if (!product) throw new HttpException(`Product ${productId} not found`, HttpStatus.NOT_FOUND)
+
+        const availableStock = product.Stock.reduce((acc, stock) => acc + stock.available, 0)
+
+        if (availableStock < quantity)
+          throw new HttpException(
+            `Insufficient stock for product ${productId}, available: ${availableStock}, requested: ${quantity}`,
+            HttpStatus.BAD_REQUEST,
+          )
+      }
+    } catch (error) {
+      ExceptionHandler.handle(error, this.logger)
+    }
+  }
+
+  @OnEvent('product.reserve', { async: true, promisify: true })
+  async reserveProduct(productId: string, quantity: number, prisma?: TransactionClient): Promise<void> {
+    try {
+      const prismaClient = prisma || this.prismaService
+
+      const product = await prismaClient.product.findUnique({
+        where: { id: productId, deletedAt: null },
+        include: { Stock: true },
+      })
+
+      if (!product) throw new HttpException('Product not found', HttpStatus.NOT_FOUND)
+
+      const availableStock = product.Stock.reduce((acc, stock) => acc + stock.available, 0)
+
+      if (availableStock < quantity) throw new HttpException('Insufficient stock', HttpStatus.BAD_REQUEST)
+
+      const stock = product.Stock.find((stock) => stock.available >= quantity)
+
+      await this.prismaService.stock.update({
+        where: { id: stock.id },
+        data: {
+          available: stock.available - quantity,
+          reserved: stock.reserved + quantity,
+        },
+      })
+    } catch (error) {
+      ExceptionHandler.handle(error, this.logger)
+    }
+  }
+
+  @OnEvent('product.release', { async: true, promisify: true })
+  async releaseProduct(productId: string, quantity: number, prisma?: TransactionClient): Promise<void> {
+    try {
+      const prismaClient = prisma || this.prismaService
+
+      const product = await prismaClient.product.findUnique({
+        where: { id: productId, deletedAt: null },
+        include: { Stock: true },
+      })
+
+      if (!product) throw new HttpException('Product not found', HttpStatus.NOT_FOUND)
+
+      const stock = product.Stock.find((stock) => stock.reserved >= quantity)
+
+      if (!stock) throw new HttpException('Insufficient reserved stock', HttpStatus.BAD_REQUEST)
+
+      await this.prismaService.stock.update({
+        where: { id: stock.id },
+        data: {
+          available: stock.available + quantity,
+          reserved: stock.reserved - quantity,
+        },
+      })
+    } catch (error) {
+      ExceptionHandler.handle(error, this.logger)
+    }
+  }
+
+  @OnEvent('product.sell', { async: true, promisify: true })
+  async sellProduct(productId: string, quantity: number, prisma?: TransactionClient): Promise<void> {
+    try {
+      const prismaClient = prisma || this.prismaService
+
+      const product = await prismaClient.product.findUnique({
+        where: { id: productId, deletedAt: null },
+        include: { Stock: true },
+      })
+
+      if (!product) throw new HttpException('Product not found', HttpStatus.NOT_FOUND)
+
+      const stock = product.Stock.find((stock) => stock.reserved >= quantity)
+
+      if (!stock) throw new HttpException('Insufficient reserved stock', HttpStatus.BAD_REQUEST)
+
+      await this.prismaService.stock.update({
+        where: { id: stock.id },
+        data: {
+          reserved: stock.reserved - quantity,
+        },
       })
     } catch (error) {
       ExceptionHandler.handle(error, this.logger)

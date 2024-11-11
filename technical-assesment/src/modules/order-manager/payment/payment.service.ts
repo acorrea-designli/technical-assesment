@@ -14,7 +14,7 @@ export class PaymentService {
     readonly eventEmitter: EventEmitter2,
   ) {}
 
-  async upsertPayment(createPaymentDto: CreatePaymentDto, prisma: TransactionClient): Promise<Payment> {
+  async upsertPayment(createPaymentDto: CreatePaymentDto, prisma?: TransactionClient): Promise<Payment> {
     const prismaClient = prisma || this.prismaService
 
     const validPayment = await this.getPendingOrderPayment(createPaymentDto.orderId, prismaClient)
@@ -26,7 +26,7 @@ export class PaymentService {
 
     const payment = await prismaClient.payment.upsert({
       where: {
-        id: validPayment,
+        id: validPayment || '',
       },
       update,
       create: {
@@ -42,7 +42,7 @@ export class PaymentService {
     return paymentResponse
   }
 
-  async getPendingOrderPayment(orderId: string, prisma: TransactionClient): Promise<string> {
+  async getPendingOrderPayment(orderId: string, prisma?: TransactionClient): Promise<string> {
     const prismaClient = prisma || this.prismaService
 
     const order = await prismaClient.order.findUnique({
@@ -56,5 +56,36 @@ export class PaymentService {
 
     const validPayment = order.Payment?.find((payment) => payment.status === PaymentStatus.PENDING)
     return validPayment?.id
+  }
+
+  async userPendingPaymentOrders(userId: string, prisma?: TransactionClient): Promise<string[]> {
+    const prismaClient = prisma || this.prismaService
+
+    const payments = await prismaClient.payment.findMany({
+      where: {
+        order: {
+          userId,
+          deletedAt: null,
+        },
+        status: 'PENDING',
+        deletedAt: null,
+      },
+      select: {
+        orderId: true,
+      },
+    })
+
+    return payments.map((payment) => payment.orderId)
+  }
+
+  async orderPayments(orderId: string, prisma?: TransactionClient): Promise<Payment[]> {
+    const prismaClient = prisma || this.prismaService
+
+    return prismaClient.payment.findMany({
+      where: {
+        orderId,
+        deletedAt: null,
+      },
+    })
   }
 }

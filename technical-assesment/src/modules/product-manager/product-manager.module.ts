@@ -7,6 +7,7 @@ import { ProductManagerController } from './product-manager.controller';
 @Module({
   imports: [ProductModule, StockModule],
   providers: [ProductManagerService],
-  controllers: [ProductManagerController]
+  controllers: [ProductManagerController],
+  exports: [ProductManagerService],
 })
 export class ProductManagerModule {}

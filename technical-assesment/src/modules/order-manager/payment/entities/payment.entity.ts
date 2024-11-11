@@ -8,7 +8,7 @@ export class Payment {
   orderId: string
 
   @Expose()
-  paymentMethod: string
+  paymentMethod?: string
 
   @Expose()
   status: string

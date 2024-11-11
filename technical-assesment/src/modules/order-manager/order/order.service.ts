@@ -1,4 +1,3 @@
-import { OrderProduct } from '@prisma/client'
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common'
 import { CreateOrderDto } from './dto/create-order.dto'
 import { UpdateOrderDto } from './dto/update-order.dto'
@@ -12,7 +11,7 @@ import { plainToInstance } from 'class-transformer'
 export class OrderService {
   constructor(readonly prismaService: PrismaService) {}
 
-  async create(createOrderDto: CreateOrderDto, prisma: TransactionClient): Promise<Order> {
+  async create(createOrderDto: CreateOrderDto, prisma?: TransactionClient): Promise<Order> {
     const prismaClient = prisma || this.prismaService
 
     const order = await prismaClient.order.create({
@@ -36,24 +35,24 @@ export class OrderService {
     return await this.findOne(order.id, prismaClient)
   }
 
-  async findOne(id: string, prisma: TransactionClient): Promise<Order> {
+  async findOne(id: string, prisma?: TransactionClient): Promise<Order> {
     const prismaClient = prisma || this.prismaService
 
     const orderWithProducts = await prismaClient.order.findUnique({
       where: { id: id, deletedAt: null },
       include: {
-        orderProducts: { include: { product: {} } },
+        orderProducts: { include: { product: true } },
       },
     })
 
     const orderResponse: Order = {
       id: orderWithProducts.id,
       customerId: orderWithProducts.userId,
-      products: orderWithProducts.orderProducts.map((orderProduct: OrderProduct) => {
+      products: orderWithProducts.orderProducts.map((orderProduct) => {
         if (orderProduct.deletedAt) return null
 
         return {
-          productId: orderProduct.productId,
+          ...orderProduct.product,
           quantity: orderProduct.quantity,
         }
       }),
@@ -65,7 +64,38 @@ export class OrderService {
     return plainToInstance(Order, orderResponse, { excludeExtraneousValues: true })
   }
 
-  async update(id: string, updateOrderDto: UpdateOrderDto, prisma: TransactionClient) {
+  async findByCustomerId(customerId: string, prisma?: TransactionClient): Promise<Order[]> {
+    const prismaClient = prisma || this.prismaService
+
+    const orders = await prismaClient.order.findMany({
+      where: { userId: customerId, deletedAt: null },
+      include: {
+        orderProducts: { include: { product: true } },
+      },
+    })
+
+    const result = orders.map((order) => {
+      return {
+        id: order.id,
+        customerId: order.userId,
+        products: order.orderProducts.map((orderProduct) => {
+          if (orderProduct.deletedAt) return null
+
+          return {
+            ...orderProduct.product,
+            quantity: orderProduct.quantity,
+          }
+        }),
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt,
+        deletedAt: order.deletedAt,
+      }
+    })
+
+    return plainToInstance(Order, result, { excludeExtraneousValues: true })
+  }
+
+  async update(id: string, updateOrderDto: UpdateOrderDto, prisma?: TransactionClient) {
     const prismaClient = prisma || this.prismaService
 
     const order = await prismaClient.order.findUnique({
@@ -105,7 +135,7 @@ export class OrderService {
     return await this.findOne(id, prismaClient)
   }
 
-  async remove(id: string, prisma: TransactionClient): Promise<Order> {
+  async remove(id: string, prisma?: TransactionClient): Promise<Order> {
     const prismaClient = prisma || this.prismaService
 
     const order = await prismaClient.order.findUnique({
