@@ -1,26 +1,29 @@
-import { Injectable } from '@nestjs/common';
-import { CreateStockDto } from './dto/create-stock.dto';
-import { UpdateStockDto } from './dto/update-stock.dto';
+import { Injectable, Logger } from '@nestjs/common'
+import { CreateStockDto } from './dto/create-stock.dto'
+import { Stock } from './entities/stock.entity'
+import { PrismaService } from '@commons/prisma/prisma.service'
+import { plainToInstance } from 'class-transformer'
+import { TransactionClient } from '@commons/prisma/prisma.types'
 
 @Injectable()
 export class StockService {
-  create(createStockDto: CreateStockDto) {
-    return 'This action adds a new stock';
+  private readonly logger: Logger
+
+  constructor(readonly prismaService: PrismaService) {
+    this.logger = new Logger(StockService.name)
   }
 
-  findAll() {
-    return `This action returns all stock`;
-  }
+  async create(createStockDto: CreateStockDto, prisma?: TransactionClient): Promise<Stock> {
+    const prismaClient = prisma || this.prismaService
 
-  findOne(id: number) {
-    return `This action returns a #${id} stock`;
-  }
+    await prismaClient.stock.deleteMany({
+      where: { productId: createStockDto.productId },
+    })
 
-  update(id: number, updateStockDto: UpdateStockDto) {
-    return `This action updates a #${id} stock`;
-  }
+    const stock = await prismaClient.stock.create({
+      data: createStockDto,
+    })
 
-  remove(id: number) {
-    return `This action removes a #${id} stock`;
+    return plainToInstance(Stock, stock, { excludeExtraneousValues: true })
   }
 }

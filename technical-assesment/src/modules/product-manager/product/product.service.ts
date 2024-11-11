@@ -1,26 +1,30 @@
-import { Injectable } from '@nestjs/common';
-import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common'
+import { CreateProductDto } from './dto/create-product.dto'
+import { UpdateProductDto } from './dto/update-product.dto'
+import { PrismaService } from '@commons/prisma/prisma.service'
+import { plainToInstance } from 'class-transformer'
+import { Product } from './entities/product.entity'
+import { TransactionClient } from '@commons/prisma/prisma.types'
+import { PrismaClient } from '@prisma/client'
 
 @Injectable()
 export class ProductService {
-  create(createProductDto: CreateProductDto) {
-    return 'This action adds a new product';
+  private readonly logger: Logger
+
+  constructor(readonly prismaService: PrismaService) {
+    this.logger = new Logger(ProductService.name)
   }
 
-  findAll() {
-    return `This action returns all product`;
-  }
+  async create(createProductDto: CreateProductDto, prisma?: TransactionClient): Promise<Product> {
+    const prismaClient = prisma || this.prismaService
 
-  findOne(id: number) {
-    return `This action returns a #${id} product`;
-  }
+    const existingProduct = await prismaClient.product.findMany({
+      where: { name: createProductDto.name, deletedAt: null },
+    })
 
-  update(id: number, updateProductDto: UpdateProductDto) {
-    return `This action updates a #${id} product`;
-  }
+    if (existingProduct?.length) throw new HttpException('Product already exists', HttpStatus.CONFLICT)
 
-  remove(id: number) {
-    return `This action removes a #${id} product`;
+    const product = await prismaClient.product.create({ data: createProductDto })
+    return plainToInstance(Product, product, { excludeExtraneousValues: true })
   }
 }

@@ -1,4 +1,4 @@
-import { HttpException, Injectable, Logger } from '@nestjs/common'
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common'
 import { CreateUserDto } from './dto/create-user.dto'
 import { PrismaService } from '@commons/prisma/prisma.service'
 import { User } from './entities/user.entity'
@@ -25,7 +25,7 @@ export class UserService {
       },
     })
 
-    if (!role) throw new HttpException('Role not found', 404)
+    if (!role) throw new HttpException('Role not found', HttpStatus.BAD_REQUEST)
 
     const existingUser = await this.prismaService.user.findUnique({
       where: {
@@ -33,13 +33,15 @@ export class UserService {
       },
     })
 
-    if (existingUser?.deletedAt === null) throw new HttpException('User already exists', 400)
-    else if (existingUser?.deletedAt) {
-      await this.prismaService.user.delete({
-        where: {
-          id: existingUser.id,
-        },
-      })
+    if (existingUser) {
+      if (existingUser.deletedAt === null) throw new HttpException('User already exists', HttpStatus.CONFLICT)
+      else if (existingUser.deletedAt) {
+        await this.prismaService.user.delete({
+          where: {
+            id: existingUser.id,
+          },
+        })
+      }
     }
 
     const user = await this.prismaService.user.create({
@@ -92,7 +94,7 @@ export class UserService {
       },
     })
 
-    if (!user) throw new HttpException('User not found', 404)
+    if (!user) throw new HttpException('User not found', HttpStatus.NOT_FOUND)
 
     const result = {
       ...user,
@@ -112,7 +114,7 @@ export class UserService {
       },
     })
 
-    if (!user) throw new HttpException('User not found', 404)
+    if (!user) throw new HttpException('User not found', HttpStatus.NOT_FOUND)
 
     const result = {
       ...user,
@@ -130,7 +132,7 @@ export class UserService {
       },
     })
 
-    if (!user) throw new HttpException('User not found', 404)
+    if (!user) throw new HttpException('User not found', HttpStatus.NOT_FOUND)
 
     return await this.passwordManagerService.comparePassword(password, user.password)
   }

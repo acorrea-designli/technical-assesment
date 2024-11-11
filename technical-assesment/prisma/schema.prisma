@@ -37,7 +37,7 @@ model Role {
 
 model Product {
   id           String         @id @default(cuid())
-  name         String
+  name         String         
   description  String
   price        Float
   createdAt    DateTime       @default(now())
@@ -61,9 +61,9 @@ model Order {
 model OrderProduct {
   id        String    @id @default(cuid())
   orderId   String
-  order     Order     @relation(fields: [orderId], references: [id])
+  order     Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   productId String
-  product   Product   @relation(fields: [productId], references: [id])
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
   quantity  Int
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -73,7 +73,7 @@ model OrderProduct {
 model Stock {
   id        String    @id @default(cuid())
   productId String
-  product   Product   @relation(fields: [productId], references: [id])
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
   available Int
   reserved  Int
   createdAt DateTime  @default(now())
@@ -84,7 +84,7 @@ model Stock {
 model Payment {
   id            String        @id @default(cuid())
   orderId       String
-  order         Order         @relation(fields: [orderId], references: [id])
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
   status        PaymentStatus
   paymentMethod String
   createdAt     DateTime      @default(now())

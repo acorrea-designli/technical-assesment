@@ -1,9 +1,8 @@
-import { Module } from '@nestjs/common';
-import { StockService } from './stock.service';
-import { StockController } from './stock.controller';
+import { Module } from '@nestjs/common'
+import { StockService } from './stock.service'
 
 @Module({
-  controllers: [StockController],
   providers: [StockService],
+  exports: [StockService],
 })
 export class StockModule {}
