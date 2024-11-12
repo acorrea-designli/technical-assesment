@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common'
-import { AppService } from './app.service'
 import { ModulesModule } from './modules/modules.module'
 import { CommonsModule } from './commons/commons.module'
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
