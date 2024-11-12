@@ -8,7 +8,8 @@ import { ExceptionHandler } from '@commons/exeptions/handler'
 import { UpdateProductStockDto } from './dto/update-product-stock.dto'
 import { plainToInstance } from 'class-transformer'
 import { TransactionClient } from '@commons/prisma/prisma.types'
-import { EventEmitter2, OnEvent } from '@nestjs/event-emitter'
+import { OnEvent } from '@nestjs/event-emitter'
+import { EventManagerService } from '@commons/event-manager/event-manager.service'
 
 @Injectable()
 export class ProductManagerService {
@@ -18,7 +19,7 @@ export class ProductManagerService {
     readonly productService: ProductService,
     readonly stockService: StockService,
     readonly prismaService: PrismaService,
-    readonly eventEmitter: EventEmitter2,
+    readonly eventEmitter: EventManagerService,
   ) {
     this.logger = new Logger(ProductManagerService.name)
   }

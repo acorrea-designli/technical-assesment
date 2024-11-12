@@ -1,7 +1,7 @@
 import { PrismaService } from '@commons/prisma/prisma.service'
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common'
 import { OrderService } from './order/order.service'
-import { EventEmitter2, OnEvent } from '@nestjs/event-emitter'
+import { OnEvent } from '@nestjs/event-emitter'
 import { CreateOrderDto } from './order/dto/create-order.dto'
 import { TransactionClient } from '@commons/prisma/prisma.types'
 import { PaymentService } from './payment/payment.service'
@@ -11,6 +11,7 @@ import { ExceptionHandler } from '@commons/exeptions/handler'
 import { plainToInstance } from 'class-transformer'
 import { CreatePaymentDto } from './payment/dto/create-payment.dto'
 import { PaymentStatus } from './payment/enums/payment.enum'
+import { EventManagerService } from '@commons/event-manager/event-manager.service'
 
 @Injectable()
 export class OrderManagerService {
@@ -21,7 +22,7 @@ export class OrderManagerService {
     readonly paymentService: PaymentService,
     readonly productManagerService: ProductManagerService,
     readonly prismaService: PrismaService,
-    readonly eventEmitter: EventEmitter2,
+    readonly eventEmitter: EventManagerService,
   ) {
     this.logger = new Logger(OrderManagerService.name)
   }

@@ -1,8 +1,8 @@
 import { ProcessorsEnum } from '@commons/enums/processors.enum'
+import { EventManagerService } from '@commons/event-manager/event-manager.service'
 import { PaymentSimulatorService } from '@commons/payment-simulator/payment-simulator.service'
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq'
 import { Logger } from '@nestjs/common'
-import { EventEmitter2 } from '@nestjs/event-emitter'
 import { Job } from 'bullmq'
 
 @Processor(ProcessorsEnum.PAYMENT)
@@ -11,7 +11,7 @@ export class PaymentConsumer extends WorkerHost {
 
   constructor(
     readonly paymentSimulator: PaymentSimulatorService,
-    readonly eventEmitter: EventEmitter2,
+    readonly eventEmitter: EventManagerService,
   ) {
     super()
     this.logger = new Logger(PaymentConsumer.name)

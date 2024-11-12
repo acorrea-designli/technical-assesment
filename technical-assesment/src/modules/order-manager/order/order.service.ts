@@ -7,17 +7,18 @@ import { Order } from './entities/order.entity'
 import { PrismaService } from '@commons/prisma/prisma.service'
 import { plainToInstance } from 'class-transformer'
 import { OrderStatus } from './enums/order.enum'
-import { EventEmitter2, OnEvent } from '@nestjs/event-emitter'
+import { OnEvent } from '@nestjs/event-emitter'
 import { InjectQueue } from '@nestjs/bullmq'
 import { Queue } from 'bullmq'
 import { ProcessorsEnum } from '@commons/enums/processors.enum'
+import { EventManagerService } from '@commons/event-manager/event-manager.service'
 
 @Injectable()
 export class OrderService {
   constructor(
     @InjectQueue(ProcessorsEnum.PAYMENT) readonly orderQueue: Queue,
     readonly prismaService: PrismaService,
-    readonly eventEmitter: EventEmitter2,
+    readonly eventEmitter: EventManagerService,
   ) {}
 
   async create(createOrderDto: CreateOrderDto, prisma?: TransactionClient): Promise<Order> {

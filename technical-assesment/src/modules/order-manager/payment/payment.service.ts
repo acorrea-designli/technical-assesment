@@ -5,13 +5,13 @@ import { TransactionClient } from '@commons/prisma/prisma.types'
 import { PrismaService } from '@commons/prisma/prisma.service'
 import { PaymentStatus } from './enums/payment.enum'
 import { plainToInstance } from 'class-transformer'
-import { EventEmitter2 } from '@nestjs/event-emitter'
+import { EventManagerService } from '@commons/event-manager/event-manager.service'
 
 @Injectable()
 export class PaymentService {
   constructor(
     readonly prismaService: PrismaService,
-    readonly eventEmitter: EventEmitter2,
+    readonly eventEmitter: EventManagerService,
   ) {}
 
   async upsertPayment(createPaymentDto: CreatePaymentDto, prisma?: TransactionClient): Promise<Payment> {
