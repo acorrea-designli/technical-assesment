@@ -14,6 +14,9 @@ export class Payment {
   status: string
 
   @Expose()
+  statusMessage: string
+
+  @Expose()
   createdAt: Date
 
   @Expose()

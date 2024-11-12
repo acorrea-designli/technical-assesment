@@ -6,10 +6,19 @@ import { TransactionClient } from '@commons/prisma/prisma.types'
 import { Order } from './entities/order.entity'
 import { PrismaService } from '@commons/prisma/prisma.service'
 import { plainToInstance } from 'class-transformer'
+import { OrderStatus } from './enums/order.enum'
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter'
+import { InjectQueue } from '@nestjs/bullmq'
+import { Queue } from 'bullmq'
+import { ProcessorsEnum } from '@commons/enums/processors.enum'
 
 @Injectable()
 export class OrderService {
-  constructor(readonly prismaService: PrismaService) {}
+  constructor(
+    @InjectQueue(ProcessorsEnum.PAYMENT) readonly orderQueue: Queue,
+    readonly prismaService: PrismaService,
+    readonly eventEmitter: EventEmitter2,
+  ) {}
 
   async create(createOrderDto: CreateOrderDto, prisma?: TransactionClient): Promise<Order> {
     const prismaClient = prisma || this.prismaService
@@ -56,6 +65,8 @@ export class OrderService {
           quantity: orderProduct.quantity,
         }
       }),
+      status: orderWithProducts.status,
+      statusMessage: orderWithProducts.statusMessage,
       createdAt: orderWithProducts.createdAt,
       updatedAt: orderWithProducts.updatedAt,
       deletedAt: orderWithProducts.deletedAt,
@@ -86,6 +97,8 @@ export class OrderService {
             quantity: orderProduct.quantity,
           }
         }),
+        status: order.status,
+        statusMessage: order.statusMessage,
         createdAt: order.createdAt,
         updatedAt: order.updatedAt,
         deletedAt: order.deletedAt,
@@ -152,5 +165,68 @@ export class OrderService {
     })
 
     return await this.findOne(id, prismaClient)
+  }
+
+  async setOrderStatus(orderId: string, status: OrderStatus, statusMessage: string) {
+    await this.prismaService.order.update({
+      where: { id: orderId },
+      data: {
+        status,
+        statusMessage,
+      },
+    })
+  }
+
+  @OnEvent('order.rejected', { async: true, promisify: true })
+  async onOrderRejected(orderId: string, reason: string) {
+    await this.setOrderStatus(orderId, OrderStatus.REJECTED, reason)
+    const order = await this.findOne(orderId)
+    this.eventEmitter.emit('order.updated', {
+      orderId,
+      status: OrderStatus.REJECTED,
+      statusMessage: reason,
+      userId: order.customerId,
+    })
+  }
+
+  @OnEvent('order.created', { async: true, promisify: true })
+  async onOrderCreated(orderId: string) {
+    const reason = 'Order successfully created and waiting for products to be reserved'
+    await this.setOrderStatus(orderId, OrderStatus.PENDING, reason)
+    const order = await this.findOne(orderId)
+    this.eventEmitter.emit('order.updated', {
+      orderId,
+      status: OrderStatus.PENDING,
+      statusMessage: reason,
+      userId: order.customerId,
+    })
+  }
+
+  @OnEvent('order.reserved', { async: true, promisify: true })
+  async onOrderReserved(orderId: string) {
+    const reason = 'All order products are reserved and waiting for payment to be completed'
+    await this.setOrderStatus(orderId, OrderStatus.RESERVED, reason)
+    const order = await this.findOne(orderId)
+    this.eventEmitter.emit('order.updated', {
+      orderId,
+      status: OrderStatus.RESERVED,
+      statusMessage: reason,
+      userId: order.customerId,
+    })
+
+    this.orderQueue.add(ProcessorsEnum.PAYMENT, { orderId })
+  }
+
+  @OnEvent('order.completed', { async: true, promisify: true })
+  async onOrderCompleted(orderId: string) {
+    const reason = 'Order successfully completed'
+    await this.setOrderStatus(orderId, OrderStatus.COMPLETED, 'Order successfully completed')
+    const order = await this.findOne(orderId)
+    this.eventEmitter.emit('order.updated', {
+      orderId,
+      status: OrderStatus.COMPLETED,
+      statusMessage: reason,
+      userId: order.customerId,
+    })
   }
 }

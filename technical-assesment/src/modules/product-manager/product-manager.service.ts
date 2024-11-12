@@ -8,7 +8,7 @@ import { ExceptionHandler } from '@commons/exeptions/handler'
 import { UpdateProductStockDto } from './dto/update-product-stock.dto'
 import { plainToInstance } from 'class-transformer'
 import { TransactionClient } from '@commons/prisma/prisma.types'
-import { OnEvent } from '@nestjs/event-emitter'
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter'
 
 @Injectable()
 export class ProductManagerService {
@@ -18,6 +18,7 @@ export class ProductManagerService {
     readonly productService: ProductService,
     readonly stockService: StockService,
     readonly prismaService: PrismaService,
+    readonly eventEmitter: EventEmitter2,
   ) {
     this.logger = new Logger(ProductManagerService.name)
   }
@@ -168,88 +169,107 @@ export class ProductManagerService {
     }
   }
 
-  @OnEvent('product.reserve', { async: true, promisify: true })
-  async reserveProduct(productId: string, quantity: number, prisma?: TransactionClient): Promise<void> {
+  @OnEvent('products.reserve', { async: true, promisify: true })
+  async reserveProducts(products: { productId: string; quantity: number }[], orderId: string): Promise<void> {
     try {
-      const prismaClient = prisma || this.prismaService
-
-      const product = await prismaClient.product.findUnique({
-        where: { id: productId, deletedAt: null },
+      const productsData = await this.prismaService.product.findMany({
+        where: { id: { in: products.map((product) => product.productId) }, deletedAt: null },
         include: { Stock: true },
       })
 
-      if (!product) throw new HttpException('Product not found', HttpStatus.NOT_FOUND)
+      await this.prismaService.$transaction(async (prisma) => {
+        for (const { productId, quantity } of products) {
+          const product = productsData.find((product) => product.id === productId)
 
-      const availableStock = product.Stock.reduce((acc, stock) => acc + stock.available, 0)
+          if (!product) throw new HttpException(`Product ${productId} not found`, HttpStatus.NOT_FOUND)
 
-      if (availableStock < quantity) throw new HttpException('Insufficient stock', HttpStatus.BAD_REQUEST)
+          const stock = product.Stock.find((stock) => stock.available >= quantity)
 
-      const stock = product.Stock.find((stock) => stock.available >= quantity)
+          if (!stock) throw new HttpException(`Insufficient stock for product ${productId}`, HttpStatus.BAD_REQUEST)
 
-      await this.prismaService.stock.update({
-        where: { id: stock.id },
-        data: {
-          available: stock.available - quantity,
-          reserved: stock.reserved + quantity,
-        },
+          await prisma.stock.update({
+            where: { id: stock.id },
+            data: {
+              available: stock.available - quantity,
+              reserved: stock.reserved + quantity,
+            },
+          })
+        }
       })
+
+      this.eventEmitter.emit('order.reserved', orderId)
     } catch (error) {
-      ExceptionHandler.handle(error, this.logger)
+      this.eventEmitter.emit('order.rejected', orderId, error.message)
     }
   }
 
-  @OnEvent('product.release', { async: true, promisify: true })
-  async releaseProduct(productId: string, quantity: number, prisma?: TransactionClient): Promise<void> {
+  @OnEvent('products.sell', { async: true, promisify: true })
+  async sellProducts(products: { productId: string; quantity: number }[], orderId: string): Promise<void> {
     try {
-      const prismaClient = prisma || this.prismaService
-
-      const product = await prismaClient.product.findUnique({
-        where: { id: productId, deletedAt: null },
+      const productsData = await this.prismaService.product.findMany({
+        where: { id: { in: products.map((product) => product.productId) }, deletedAt: null },
         include: { Stock: true },
       })
 
-      if (!product) throw new HttpException('Product not found', HttpStatus.NOT_FOUND)
+      await this.prismaService.$transaction(async (prisma) => {
+        for (const { productId, quantity } of products) {
+          const product = productsData.find((product) => product.id === productId)
 
-      const stock = product.Stock.find((stock) => stock.reserved >= quantity)
+          if (!product) throw new HttpException(`Product ${productId} not found`, HttpStatus.NOT_FOUND)
 
-      if (!stock) throw new HttpException('Insufficient reserved stock', HttpStatus.BAD_REQUEST)
+          const stock = product.Stock.find((stock) => stock.reserved >= quantity)
 
-      await this.prismaService.stock.update({
-        where: { id: stock.id },
-        data: {
-          available: stock.available + quantity,
-          reserved: stock.reserved - quantity,
-        },
+          if (!stock)
+            throw new HttpException(`Insufficient reserved stock for product ${productId}`, HttpStatus.BAD_REQUEST)
+
+          await prisma.stock.update({
+            where: { id: stock.id },
+            data: {
+              reserved: stock.reserved - quantity,
+            },
+          })
+        }
       })
+
+      this.eventEmitter.emit('order.completed', orderId)
     } catch (error) {
-      ExceptionHandler.handle(error, this.logger)
+      this.eventEmitter.emit('order.rejected', orderId, error.message)
     }
   }
 
-  @OnEvent('product.sell', { async: true, promisify: true })
-  async sellProduct(productId: string, quantity: number, prisma?: TransactionClient): Promise<void> {
+  @OnEvent('products.release', { async: true, promisify: true })
+  async releaseProducts(
+    products: { productId: string; quantity: number }[],
+    orderId: string,
+    reason: string,
+  ): Promise<void> {
     try {
-      const prismaClient = prisma || this.prismaService
-
-      const product = await prismaClient.product.findUnique({
-        where: { id: productId, deletedAt: null },
+      const productsData = await this.prismaService.product.findMany({
+        where: { id: { in: products.map((product) => product.productId) }, deletedAt: null },
         include: { Stock: true },
       })
 
-      if (!product) throw new HttpException('Product not found', HttpStatus.NOT_FOUND)
+      await this.prismaService.$transaction(async (prisma) => {
+        for (const { productId, quantity } of products) {
+          const product = productsData.find((product) => product.id === productId)
 
-      const stock = product.Stock.find((stock) => stock.reserved >= quantity)
+          if (!product) throw new HttpException(`Product ${productId} not found`, HttpStatus.NOT_FOUND)
 
-      if (!stock) throw new HttpException('Insufficient reserved stock', HttpStatus.BAD_REQUEST)
+          const stock = product.Stock.find((stock) => stock.reserved >= quantity)
 
-      await this.prismaService.stock.update({
-        where: { id: stock.id },
-        data: {
-          reserved: stock.reserved - quantity,
-        },
+          await prisma.stock.update({
+            where: { id: stock.id },
+            data: {
+              available: stock.available + quantity,
+              reserved: stock.reserved - quantity,
+            },
+          })
+        }
       })
+
+      this.eventEmitter.emit('order.rejected', orderId, reason)
     } catch (error) {
-      ExceptionHandler.handle(error, this.logger)
+      this.logger.error(error.message)
     }
   }
 }

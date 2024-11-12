@@ -10,6 +10,10 @@ export class CreatePaymentDto {
   @IsEnum(PaymentStatus)
   status: PaymentStatus = PaymentStatus.PENDING
 
+  @IsOptional()
+  @IsString()
+  statusMessage: string = ''
+
   @IsString()
   @IsNotEmpty()
   paymentMethod: string

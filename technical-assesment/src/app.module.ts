@@ -6,6 +6,7 @@ import { CommonsModule } from './commons/commons.module'
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
 import { APP_GUARD } from '@nestjs/core'
 import { EventEmitterModule } from '@nestjs/event-emitter'
+import { BullModule } from '@nestjs/bullmq'
 
 @Module({
   imports: [
@@ -18,6 +19,13 @@ import { EventEmitterModule } from '@nestjs/event-emitter'
       },
     ]),
     EventEmitterModule.forRoot(),
+    BullModule.forRoot({
+      connection: {
+        host: process.env.REDIS_HOST,
+        port: parseInt(process.env.REDIS_PORT),
+        password: process.env.REDIS_PASSWORD,
+      },
+    }),
   ],
   controllers: [AppController],
   providers: [

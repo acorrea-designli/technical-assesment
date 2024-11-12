@@ -23,6 +23,7 @@ export class PaymentService {
 
     if (createPaymentDto.status) update['status'] = createPaymentDto.status
     if (createPaymentDto.paymentMethod) update['paymentMethod'] = createPaymentDto.paymentMethod
+    if (createPaymentDto.statusMessage) update['statusMessage'] = createPaymentDto.statusMessage
 
     const payment = await prismaClient.payment.upsert({
       where: {
@@ -33,12 +34,20 @@ export class PaymentService {
         orderId: createPaymentDto.orderId,
         paymentMethod: createPaymentDto.paymentMethod,
         status: createPaymentDto.status,
+        statusMessage: createPaymentDto.statusMessage,
       },
     })
 
     const paymentResponse = plainToInstance(Payment, payment, { excludeExtraneousValues: true })
 
-    this.eventEmitter.emit('payment.updated', { data: paymentResponse })
+    const order = await prismaClient.order.findUnique({ where: { id: createPaymentDto.orderId } })
+
+    this.eventEmitter.emit('payment.updated', {
+      orderId: createPaymentDto.orderId,
+      status: createPaymentDto.status,
+      statusMessage: createPaymentDto.statusMessage,
+      userId: order.userId,
+    })
     return paymentResponse
   }
 
@@ -87,5 +96,38 @@ export class PaymentService {
         deletedAt: null,
       },
     })
+  }
+
+  async setOrderPaymentStatus(orderId: string, status: PaymentStatus, message: string, prisma?: TransactionClient) {
+    const prismaClient = prisma || this.prismaService
+
+    const payment = await prismaClient.payment.findFirst({
+      where: {
+        orderId,
+        status: PaymentStatus.PENDING,
+        deletedAt: null,
+      },
+    })
+
+    if (!payment) throw new HttpException('Payment not found', HttpStatus.NOT_FOUND)
+
+    await prismaClient.payment.update({
+      where: { id: payment.id },
+      data: {
+        status,
+        statusMessage: message,
+      },
+    })
+
+    const order = await prismaClient.order.findUnique({ where: { id: orderId } })
+
+    this.eventEmitter.emit('payment.updated', {
+      orderId,
+      status,
+      statusMessage: message,
+      userId: order.userId,
+    })
+
+    return payment.id
   }
 }

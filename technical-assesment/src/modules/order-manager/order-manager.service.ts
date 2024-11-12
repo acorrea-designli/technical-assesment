@@ -9,6 +9,8 @@ import { ProductManagerService } from '@modules/product-manager/product-manager.
 import { OrderWithPayment } from './entity/order-payment.entity'
 import { ExceptionHandler } from '@commons/exeptions/handler'
 import { plainToInstance } from 'class-transformer'
+import { CreatePaymentDto } from './payment/dto/create-payment.dto'
+import { PaymentStatus } from './payment/enums/payment.enum'
 
 @Injectable()
 export class OrderManagerService {
@@ -24,15 +26,21 @@ export class OrderManagerService {
     this.logger = new Logger(OrderManagerService.name)
   }
 
+  async testWebsocket() {
+    this.eventEmitter.emit('order.test', 'Hello world!')
+  }
+
   async createOrder(data: CreateOrderDto): Promise<OrderWithPayment> {
     const order = await this.prismaService.$transaction(async (prisma) => {
       await this.canUserOrder(data.customerId, prisma)
 
       const order = await this.orderService.create(data, prisma)
-      const payment = await this.paymentService.upsertPayment(
-        { orderId: order.id, status: 'PENDING', paymentMethod: '' },
-        prisma,
-      )
+
+      const paymentDto = new CreatePaymentDto()
+      paymentDto.orderId = order.id
+      paymentDto.paymentMethod = ''
+
+      const payment = await this.paymentService.upsertPayment(paymentDto, prisma)
 
       let totalPrice = 0
 
@@ -54,9 +62,7 @@ export class OrderManagerService {
       }
     })
 
-    for (const product of order.products) this.eventEmitter.emit('product.reserve', product.id, product.quantity)
-
-    this.eventEmitter.emit('order.created', order)
+    this.eventEmitter.emit('order.created', order.id)
     return order
   }
 
@@ -77,7 +83,7 @@ export class OrderManagerService {
         {
           ...order,
           payments,
-          price: order.products.reduce((acc, product) => acc + product.price * product.quantity, 0),
+          price: order.products.reduce((acc, product) => acc + product?.price * product?.quantity || 0, 0),
         },
         { excludeExtraneousValues: true },
       )
@@ -100,12 +106,52 @@ export class OrderManagerService {
       const result = orders.map((order) => ({
         ...order,
         payments: payments.filter((payment) => payment.orderId === order.id),
-        price: order.products.reduce((acc, product) => acc + product.price * product.quantity, 0),
+        price: order.products?.reduce((acc, product) => acc + product?.price * product?.quantity || 0, 0),
       }))
 
       return plainToInstance(OrderWithPayment, result, { excludeExtraneousValues: true })
     } catch (error) {
       ExceptionHandler.handle(error, this.logger)
     }
+  }
+
+  @OnEvent('order.created')
+  async handleOrderCreated(orderId: string) {
+    const order = await this.orderService.findOne(orderId)
+
+    const products = order.products.map((product) => ({
+      productId: product.id,
+      quantity: product.quantity,
+    }))
+
+    this.eventEmitter.emit('products.reserve', products, orderId)
+  }
+
+  @OnEvent('order.payment.success')
+  async handleOrderPaymentSuccess(orderId: string) {
+    await this.paymentService.setOrderPaymentStatus(orderId, PaymentStatus.PAID, 'Payment successful')
+
+    const order = await this.orderService.findOne(orderId)
+
+    const products = order.products.map((product) => ({
+      productId: product.id,
+      quantity: product.quantity,
+    }))
+
+    this.eventEmitter.emit('products.sell', products, orderId)
+  }
+
+  @OnEvent('order.payment.failed')
+  async handleOrderPaymentFailed(orderId: string, message: string) {
+    await this.paymentService.setOrderPaymentStatus(orderId, PaymentStatus.FAILED, message)
+
+    const order = await this.orderService.findOne(orderId)
+
+    const products = order.products.map((product) => ({
+      productId: product.id,
+      quantity: product.quantity,
+    }))
+
+    this.eventEmitter.emit('products.release', products, orderId, message)
   }
 }
