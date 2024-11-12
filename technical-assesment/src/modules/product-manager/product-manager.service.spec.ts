@@ -5,12 +5,13 @@ import { DeepMockProxy, mockDeep } from 'jest-mock-extended'
 import { PrismaService } from '@commons/prisma/prisma.service'
 import { ProductService } from './product/product.service'
 import { StockService } from './stock/stock.service'
+import { ProductFactory } from '@commons/factories/product.factory'
+import { EventManagerService } from '@commons/event-manager/event-manager.service'
+import { CacheService } from '@commons/cache/cache.service'
 
 describe('ProductManagerService', () => {
   let service: ProductManagerService
   let prismaMock: DeepMockProxy<PrismaClient>
-  let productService: ProductService
-  let stockService: StockService
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -32,13 +33,23 @@ describe('ProductManagerService', () => {
             create: jest.fn().mockResolvedValue({}),
           },
         },
+        {
+          provide: EventManagerService,
+          useValue: {
+            emit: jest.fn().mockResolvedValue({}),
+          },
+        },
+        {
+          provide: CacheService,
+          useValue: {
+            clear: jest.fn().mockResolvedValue({}),
+          },
+        },
       ],
     }).compile()
 
     service = module.get<ProductManagerService>(ProductManagerService)
     prismaMock = module.get(PrismaService)
-    productService = module.get(ProductService)
-    stockService = module.get(StockService)
 
     Reflect.set(service, 'logger', { log: (_: unknown) => {}, error: (_: unknown) => {} })
   })
@@ -48,11 +59,13 @@ describe('ProductManagerService', () => {
   })
 
   it('should create product', async () => {
+    const productPrismaResponse = ProductFactory.createPrismaResponse()[0]
+
     const createProductDto = {
-      name: 'Product Name',
-      description: 'Product Description',
-      stock: 10,
-      price: 10,
+      name: productPrismaResponse.name,
+      description: productPrismaResponse.description,
+      stock: productPrismaResponse.Stock.stock,
+      price: productPrismaResponse.price,
     }
 
     await service.createProduct(createProductDto)
@@ -85,24 +98,16 @@ describe('ProductManagerService', () => {
   })
 
   it('should delete product', async () => {
-    const id = 'Product Id'
+    const productPrismaResponse = ProductFactory.createPrismaResponse()[0]
 
-    prismaMock.product.findUnique.mockResolvedValue({
-      id,
-      name: 'Product Name',
-      description: 'Product Description',
-      price: 10,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      deletedAt: null,
-    })
+    prismaMock.product.findUnique.mockResolvedValue(productPrismaResponse)
 
-    await service.deleteProduct(id)
+    await service.deleteProduct(productPrismaResponse.id)
 
     expect(prismaMock.product.update).toHaveBeenCalledTimes(1)
     expect(prismaMock.stock.deleteMany).toHaveBeenCalledTimes(1)
     expect(prismaMock.stock.deleteMany).toHaveBeenCalledWith({
-      where: { productId: id },
+      where: { productId: productPrismaResponse.id },
     })
   })
 
@@ -115,5 +120,31 @@ describe('ProductManagerService', () => {
     expect(prismaMock.product.findUnique).toHaveBeenCalledWith({
       where: { id: 'Product Id', deletedAt: null },
     })
+  })
+
+  it('should not throw error when user can reserve products', async () => {
+    const products = ProductFactory.createPrismaResponse(2)
+    const request = [{ productId: products[0].id, quantity: products[0].Stock.available - 1 }]
+
+    prismaMock.product.findMany.mockResolvedValue(products)
+
+    await service.canProductsBeReserved(request)
+
+    expect(prismaMock.product.findMany).toHaveBeenCalledTimes(1)
+  })
+
+  it('should throw error when user can not reserve products', async () => {
+    const products = ProductFactory.createPrismaResponse(2)
+    const request = [{ productId: products[0].id, quantity: products[0].Stock.available + 1 }]
+
+    prismaMock.product.findMany.mockResolvedValue(products)
+
+    try {
+      await service.canProductsBeReserved(request)
+    } catch (error) {
+      expect(error.message).toContain('Insufficient stock for product')
+    }
+
+    expect(prismaMock.product.findMany).toHaveBeenCalledTimes(1)
   })
 })

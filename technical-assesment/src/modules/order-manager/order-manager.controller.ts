@@ -8,11 +8,6 @@ import { ApiBearerAuth } from '@nestjs/swagger'
 export class OrderManagerController {
   constructor(readonly orderManagerService: OrderManagerService) {}
 
-  @Get('test')
-  async testOrder() {
-    return this.orderManagerService.testWebsocket()
-  }
-
   @Post()
   @UseGuards(AuthGuard)
   @ApiBearerAuth()

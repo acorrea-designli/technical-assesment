@@ -27,10 +27,6 @@ export class OrderManagerService {
     this.logger = new Logger(OrderManagerService.name)
   }
 
-  async testWebsocket() {
-    this.eventEmitter.emit('order.test', 'Hello world!')
-  }
-
   async createOrder(data: CreateOrderDto): Promise<OrderWithPayment> {
     const order = await this.prismaService.$transaction(async (prisma) => {
       await this.canUserOrder(data.customerId, prisma)
@@ -62,7 +58,7 @@ export class OrderManagerService {
         price: totalPrice,
       }
     })
-
+    
     this.eventEmitter.emit('order.created', order.id)
     return order
   }

@@ -55,6 +55,7 @@ export class OrderService {
       },
     })
 
+
     const orderResponse: Order = {
       id: orderWithProducts.id,
       customerId: orderWithProducts.userId,
@@ -72,6 +73,8 @@ export class OrderService {
       updatedAt: orderWithProducts.updatedAt,
       deletedAt: orderWithProducts.deletedAt,
     }
+
+    console.log(orderResponse)
 
     return plainToInstance(Order, orderResponse, { excludeExtraneousValues: true })
   }

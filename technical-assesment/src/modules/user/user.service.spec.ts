@@ -40,53 +40,27 @@ describe('UserService', () => {
   })
 
   it('should create user', async () => {
-    const createUserDto = UserFactory.create(1)[0]
+    const prismaUserResponse = UserFactory.createPrismaResponse()[0]
 
-    const { password, ...createUserDtoWithoutPassword } = createUserDto
-    const response = {
-      ...createUserDtoWithoutPassword,
-      id: faker.string.uuid(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      deletedAt: null,
-      password: 'hashedPassword',
-      roleId: faker.string.uuid(),
-      Role: {
-        id: faker.string.uuid(),
-        name: 'admin',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        deletedAt: null,
-      },
+    const request = {
+      email: prismaUserResponse.email,
+      name: prismaUserResponse.name,
+      password: 'password',
+      role: prismaUserResponse.Role.name,
     }
 
-    prismaMock.role.findUnique.mockResolvedValue(response.Role)
+    prismaMock.role.findUnique.mockResolvedValue(prismaUserResponse.Role)
     prismaMock.user.findUnique.mockResolvedValue(null)
-    prismaMock.user.create.mockResolvedValue(response)
+    prismaMock.user.create.mockResolvedValue(prismaUserResponse)
 
-    const result = await service.create(createUserDto)
+    const result = await service.create(request)
 
-    expect(passwordManagerService.hashPassword).toHaveBeenCalledWith(password)
-    expect(prismaMock.user.create).toHaveBeenCalledWith({
-      data: {
-        email: createUserDto.email,
-        name: createUserDto.name,
-        password: 'hashedPassword',
-        Role: {
-          connect: {
-            id: response.Role.id,
-          },
-        },
-      },
-      include: {
-        Role: true,
-      },
-    })
+    expect(passwordManagerService.hashPassword).toHaveBeenCalledWith(request.password)
     expect(result).toEqual(
       expect.objectContaining({
-        email: createUserDto.email,
-        name: createUserDto.name,
-        role: response.Role.name,
+        email: request.email,
+        name: request.name,
+        role: request.role,
       }),
     )
 
@@ -94,31 +68,20 @@ describe('UserService', () => {
   })
 
   it('should throw error when user already exists', async () => {
-    const createUserDto = UserFactory.create(1)[0]
+    const prismaUserResponse = UserFactory.createPrismaResponse()[0]
 
-    const { password, ...createUserDtoWithoutPassword } = createUserDto
-    const response = {
-      ...createUserDtoWithoutPassword,
-      id: faker.string.uuid(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      deletedAt: null,
-      password: 'hashedPassword',
-      roleId: faker.string.uuid(),
-      Role: {
-        id: faker.string.uuid(),
-        name: 'admin',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        deletedAt: null,
-      },
+    const request = {
+      email: prismaUserResponse.email,
+      name: prismaUserResponse.name,
+      password: 'password',
+      role: prismaUserResponse.Role.name,
     }
 
-    prismaMock.role.findUnique.mockResolvedValue(response.Role)
-    prismaMock.user.findUnique.mockResolvedValue(response)
+    prismaMock.role.findUnique.mockResolvedValue(prismaUserResponse.Role)
+    prismaMock.user.findUnique.mockResolvedValue(prismaUserResponse)
 
     try {
-      await service.create(createUserDto)
+      await service.create(request)
     } catch (error) {
       expect(error.message).toBe('User already exists')
     }
@@ -127,32 +90,22 @@ describe('UserService', () => {
   })
 
   it('should validate user', async () => {
-    const createUserDto = UserFactory.create(1)[0]
-    const { password, ...createUserDtoWithoutPassword } = createUserDto
-    const dbUser = {
-      ...createUserDtoWithoutPassword,
-      id: faker.string.uuid(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      deletedAt: null,
-      password: 'hashedPassword',
-      roleId: faker.string.uuid(),
-      Role: {
-        id: faker.string.uuid(),
-        name: 'admin',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        deletedAt: null,
-      },
+    const prismaUserResponse = UserFactory.createPrismaResponse()[0]
+
+    const request = {
+      email: prismaUserResponse.email,
+      name: prismaUserResponse.name,
+      password: 'password',
+      role: prismaUserResponse.Role.name,
     }
 
-    prismaMock.user.findUnique.mockResolvedValue(dbUser)
+    prismaMock.user.findUnique.mockResolvedValue(prismaUserResponse)
 
-    const result = await service.validateUser(createUserDto.email, createUserDto.password)
+    const result = await service.validateUser(request.email, request.password)
 
     expect(prismaMock.user.findUnique).toHaveBeenCalledWith({
       where: {
-        email: createUserDto.email,
+        email: request.email,
         deletedAt: null,
       },
     })

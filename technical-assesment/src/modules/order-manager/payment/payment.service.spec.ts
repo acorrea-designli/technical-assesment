@@ -1,9 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { PaymentService } from './payment.service'
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended'
-import { PaymentStatus, PrismaClient } from '@prisma/client'
+import { OrderStatus, PaymentStatus, PrismaClient } from '@prisma/client'
 import { PrismaService } from '@commons/prisma/prisma.service'
 import { EventEmitter2 } from '@nestjs/event-emitter'
+import { EventManagerService } from '@commons/event-manager/event-manager.service'
 
 describe('PaymentService', () => {
   let service: PaymentService
@@ -18,8 +19,10 @@ describe('PaymentService', () => {
           useValue: mockDeep<PrismaService>(),
         },
         {
-          provide: EventEmitter2,
-          useValue: mockDeep(),
+          provide: EventManagerService,
+          useValue: {
+            emit: jest.fn().mockResolvedValue({}),
+          },
         },
       ],
     }).compile()
@@ -36,6 +39,7 @@ describe('PaymentService', () => {
     const createPaymentDto = {
       orderId: 'orderId',
       status: PaymentStatus.PENDING,
+      statusMessage: 'statusMessage',
       paymentMethod: 'paymentMethod',
     }
 
@@ -43,6 +47,7 @@ describe('PaymentService', () => {
       id: 'paymentId',
       orderId: createPaymentDto.orderId,
       status: createPaymentDto.status,
+      statusMessage: createPaymentDto.statusMessage,
       paymentMethod: createPaymentDto.paymentMethod,
       updatedAt: new Date(),
       createdAt: new Date(),
@@ -51,6 +56,15 @@ describe('PaymentService', () => {
     service.getPendingOrderPayment = jest.fn().mockResolvedValue('paymentId')
     prismaMock.payment.upsert.mockResolvedValue({
       ...response,
+      deletedAt: null,
+    })
+    prismaMock.order.findUnique.mockResolvedValue({
+      id: createPaymentDto.orderId,
+      status: OrderStatus.PENDING,
+      statusMessage: 'statusMessage',
+      updatedAt: new Date(),
+      createdAt: new Date(),
+      userId: 'userId',
       deletedAt: null,
     })
 
@@ -64,10 +78,13 @@ describe('PaymentService', () => {
 
     const order = {
       id: orderId,
+      status: OrderStatus.PENDING,
+      statusMessage: 'statusMessage',
       Payment: [
         {
           id: 'paymentId',
           status: PaymentStatus.PENDING,
+          statusMessage: 'statusMessage',
           paymentMethod: 'paymentMethod',
         },
       ],
@@ -99,10 +116,13 @@ describe('PaymentService', () => {
 
     const order = {
       id: orderId,
+      status: OrderStatus.PENDING,
+      statusMessage: 'statusMessage',
       Payment: [
         {
           id: 'paymentId',
           status: PaymentStatus.PAID,
+          statusMessage: 'statusMessage',
           paymentMethod: 'paymentMethod',
         },
       ],
@@ -128,6 +148,7 @@ describe('PaymentService', () => {
         orderId: 'orderId1',
         userId,
         status: PaymentStatus.PENDING,
+        statusMessage: 'statusMessage',
         paymentMethod: 'paymentMethod',
         deletedAt: null,
         updatedAt: new Date(),
@@ -138,6 +159,7 @@ describe('PaymentService', () => {
         orderId: 'orderId2',
         userId,
         status: PaymentStatus.PENDING,
+        statusMessage: 'statusMessage',
         paymentMethod: 'paymentMethod',
         deletedAt: null,
         updatedAt: new Date(),

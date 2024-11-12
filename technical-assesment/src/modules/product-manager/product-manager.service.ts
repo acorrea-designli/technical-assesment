@@ -56,9 +56,6 @@ export class ProductManagerService {
 
   async listAllProducts(): Promise<ProductStock[]> {
     try {
-      const cachedProducts = await this.cacheService.get('products')
-      if (cachedProducts) return cachedProducts
-
       const products = await this.prismaService.product.findMany({
         where: { deletedAt: null },
         include: { Stock: true },
@@ -66,10 +63,9 @@ export class ProductManagerService {
 
       const result = products.map((product) => ({
         ...product,
-        stock: product.Stock.reduce((acc, stock) => acc + stock.available, 0),
+        stock: product?.Stock?.reduce((acc, stock) => acc + stock.available, 0),
       }))
 
-      await this.cacheService.clear()
       return plainToInstance(ProductStock, result, { excludeExtraneousValues: true })
     } catch (error) {
       ExceptionHandler.handle(error, this.logger)
@@ -85,7 +81,7 @@ export class ProductManagerService {
 
       if (!product) throw new HttpException('Product not found', HttpStatus.NOT_FOUND)
 
-      const stock = product.Stock.reduce((acc, stock) => acc + stock.available, 0)
+      const stock = product?.Stock?.reduce((acc, stock) => acc + stock.available, 0)
 
       const result = {
         ...product,
