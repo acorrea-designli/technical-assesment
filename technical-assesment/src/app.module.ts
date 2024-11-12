@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common'
-import { AppController } from './app.controller'
 import { AppService } from './app.service'
 import { ModulesModule } from './modules/modules.module'
 import { CommonsModule } from './commons/commons.module'
@@ -27,9 +26,7 @@ import { BullModule } from '@nestjs/bullmq'
       },
     }),
   ],
-  controllers: [AppController],
   providers: [
-    AppService,
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,

@@ -74,8 +74,6 @@ export class OrderService {
       deletedAt: orderWithProducts.deletedAt,
     }
 
-    console.log(orderResponse)
-
     return plainToInstance(Order, orderResponse, { excludeExtraneousValues: true })
   }
 

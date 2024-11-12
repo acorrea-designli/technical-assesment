@@ -3,6 +3,7 @@ import { OrderManagerService } from './order-manager.service'
 import { CreateOrderDto } from './order/dto/create-order.dto'
 import { AuthGuard } from '@modules/auth/guards/auth.guard'
 import { ApiBearerAuth } from '@nestjs/swagger'
+import { UserOrderDto } from './dto/user-order.dto'
 
 @Controller('orders')
 export class OrderManagerController {
@@ -11,8 +12,11 @@ export class OrderManagerController {
   @Post()
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
-  async createOrder(@Body() data: CreateOrderDto) {
-    return this.orderManagerService.createOrder(data)
+  async createOrder(@Body() data: UserOrderDto, @Req() req) {
+    return this.orderManagerService.createOrder({
+      ...data,
+      customerId: req.user.sub,
+    })
   }
 
   @Get(':id')
