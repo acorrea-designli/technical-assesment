@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common'
+import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards, UseInterceptors } from '@nestjs/common'
 import { ProductManagerService } from './product-manager.service'
 import { AuthGuard } from '@modules/auth/guards/auth.guard'
 import { RolesGuard } from '@modules/auth/guards/roles.guard'
@@ -7,8 +7,12 @@ import { useRoles } from '@modules/auth/decorators/roles.decorator'
 import { CreateProductStockDto } from './dto/create-product-stock.dto'
 import { UpdateProductStockDto } from './dto/update-product-stock.dto'
 import { ApiBearerAuth } from '@nestjs/swagger'
+import { CacheService } from '@commons/cache/cache.service'
+import { CacheInterceptor, CacheKey, CacheTTL } from '@nestjs/cache-manager'
 
 @Controller('products')
+@CacheKey('prodcuts')
+@UseInterceptors(CacheInterceptor)
 export class ProductManagerController {
   constructor(private readonly productManagerService: ProductManagerService) {}
 

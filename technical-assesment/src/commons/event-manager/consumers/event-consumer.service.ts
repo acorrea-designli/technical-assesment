@@ -14,6 +14,6 @@ export class EventConsumerService extends WorkerHost {
 
   async process(job: Job) {
     this.logger.debug(`Processing event ${job.data.event}`)
-    this.eventEmitter.emit(job.data.event, job.data.values)
+    this.eventEmitter.emit(job.data.event, ...job.data.values)
   }
 }

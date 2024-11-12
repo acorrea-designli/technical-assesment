@@ -10,6 +10,7 @@ import { plainToInstance } from 'class-transformer'
 import { TransactionClient } from '@commons/prisma/prisma.types'
 import { OnEvent } from '@nestjs/event-emitter'
 import { EventManagerService } from '@commons/event-manager/event-manager.service'
+import { CacheService } from '@commons/cache/cache.service'
 
 @Injectable()
 export class ProductManagerService {
@@ -20,6 +21,7 @@ export class ProductManagerService {
     readonly stockService: StockService,
     readonly prismaService: PrismaService,
     readonly eventEmitter: EventManagerService,
+    readonly cacheService: CacheService,
   ) {
     this.logger = new Logger(ProductManagerService.name)
   }
@@ -45,6 +47,7 @@ export class ProductManagerService {
         }
       })
 
+      await this.cacheService.clear()
       return plainToInstance(ProductStock, product, { excludeExtraneousValues: true })
     } catch (error) {
       ExceptionHandler.handle(error, this.logger)
@@ -53,6 +56,9 @@ export class ProductManagerService {
 
   async listAllProducts(): Promise<ProductStock[]> {
     try {
+      const cachedProducts = await this.cacheService.get('products')
+      if (cachedProducts) return cachedProducts
+
       const products = await this.prismaService.product.findMany({
         where: { deletedAt: null },
         include: { Stock: true },
@@ -63,6 +69,7 @@ export class ProductManagerService {
         stock: product.Stock.reduce((acc, stock) => acc + stock.available, 0),
       }))
 
+      await this.cacheService.clear()
       return plainToInstance(ProductStock, result, { excludeExtraneousValues: true })
     } catch (error) {
       ExceptionHandler.handle(error, this.logger)
@@ -113,6 +120,7 @@ export class ProductManagerService {
           data: productData,
         })
 
+      await this.cacheService.clear()
       return await this.getProductById(id)
     } catch (error) {
       ExceptionHandler.handle(error, this.logger)
@@ -135,6 +143,8 @@ export class ProductManagerService {
       await this.prismaService.stock.deleteMany({
         where: { productId: id },
       })
+
+      await this.cacheService.clear()
     } catch (error) {
       ExceptionHandler.handle(error, this.logger)
     }
@@ -198,6 +208,7 @@ export class ProductManagerService {
         }
       })
 
+      await this.cacheService.clear()
       this.eventEmitter.emit('order.reserved', orderId)
     } catch (error) {
       this.eventEmitter.emit('order.rejected', orderId, error.message)
@@ -232,6 +243,7 @@ export class ProductManagerService {
         }
       })
 
+      await this.cacheService.clear()
       this.eventEmitter.emit('order.completed', orderId)
     } catch (error) {
       this.eventEmitter.emit('order.rejected', orderId, error.message)
@@ -268,6 +280,7 @@ export class ProductManagerService {
         }
       })
 
+      await this.cacheService.clear()
       this.eventEmitter.emit('order.rejected', orderId, reason)
     } catch (error) {
       this.logger.error(error.message)
