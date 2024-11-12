@@ -28,3 +28,21 @@ docker compose up
 ```
 
 This command will build the Docker image and start the container. The project will be available at `http://localhost:3000`.
+
+
+### TODO
+
+- [x] Create a new project using the NestJS framework.
+- [x] Create a RESTful API that allows users to create, read, update, and delete a user.
+- [x] Create a RESTful API that allows users to create, read, update, and delete a Product.
+- [x] Create authentication middleware that checks if the user is authenticated before allowing them to access the API.
+- [x] Create authorization middleware that checks if the user has the correct permissions before allowing them to access the API.
+- [x] Add Orders logic to the project.
+- [x] Add Websockets to the project.
+- [x] Add job queues to simulate payment jobs.
+- [ ] Add Cache layer to the project.
+- [ ] Add Unit tests to the project.
+- [ ] Add Integration tests to the project.
+- [x] Create a Dockerfile to build the project.
+- [x] Create a docker-compose file to run the project.
+- [ ] Create Documentation for the project.
