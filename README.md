@@ -80,7 +80,7 @@ After running the command, the project will be pulled from Docker hub and starte
 ```bash
 cd technical-assessment
 yarn npx prisma migrate deploy
-yard npx prisma db seed
+yarn npx prisma db seed
 ```
 
 > [!IMPORTANT]
