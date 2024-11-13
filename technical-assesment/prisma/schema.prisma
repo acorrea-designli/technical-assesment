@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  password  String
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  Order     Order[]
+  Role      Role?     @relation(fields: [roleId], references: [id])
+  roleId    String?
+}
+
+model Role {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  User      User[]
+}
+
+model Product {
+  id           String         @id @default(cuid())
+  name         String
+  description  String
+  price        Float
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  deletedAt    DateTime?
+  OrderProduct OrderProduct[]
+  Stock        Stock[]
+}
+
+model Order {
+  id            String         @id @default(cuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id])
+  orderProducts OrderProduct[]
+  status        OrderStatus    @default(PENDING)
+  statusMessage String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
+  Payment       Payment[]
+}
+
+model OrderProduct {
+  id        String    @id @default(cuid())
+  orderId   String
+  order     Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+}
+
+model Stock {
+  id        String    @id @default(cuid())
+  productId String
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  available Int
+  reserved  Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  orderId       String
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status        PaymentStatus
+  statusMessage String?
+  paymentMethod String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  deletedAt     DateTime?
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  CANCELED
+  FAILED
+}
+
+enum OrderStatus {
+  PENDING
+  RESERVED
+  COMPLETED
+  REJECTED
+}

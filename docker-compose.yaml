@@ -1,0 +1,59 @@
+services:
+    server:
+        image: acorreadesignli/technical-assesment
+        environment:
+            NODE_ENV: production
+            DATABASE_URL: ${DATABASE_URL}
+            REDIS_HOST: ${REDIS_HOST}
+            REDIS_PORT: ${REDIS_PORT}
+            REDIS_PASSWORD: ${REDIS_PASSWORD}
+            JWT_SECRET: ${JWT_SECRET}
+            JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+            THROTTLER_TTL: ${THROTTLER_TTL}
+            THROTTLER_LIMIT: ${THROTTLER_LIMIT}
+            BACKOFF_RETRIES: ${BACKOFF_RETRIES}
+            BACKOFF_DELAY: ${BACKOFF_DELAY}
+            PAYMENT_FAILED_PROBABILITY: ${PAYMENT_FAILED_PROBABILITY}
+            PAYMENT_DURATION: ${PAYMENT_DURATION}
+        ports:
+            - 3000:3000
+        depends_on:
+            db:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        networks:
+            - backend
+    db:
+        image: postgres
+        restart: always
+        user: postgres
+        environment:
+            - POSTGRES_DB=ta
+            - POSTGRES_PASSWORD=${DB_PASSWORD}
+        ports:
+            - "5432:5432"
+        healthcheck:
+            test: ["CMD", "pg_isready"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+        networks:
+            - backend
+
+    redis:
+        image: redis
+        restart: always
+        command: bash -c 'redis-server --save 20 1 --requirepass "$$REDIS_PASSWORD"'
+        environment:
+            - REDIS_PASSWORD=${REDIS_PASSWORD}
+        healthcheck:
+            test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+        ports:
+            - "6379:6379"
+        networks:
+            - backend
+
+networks:
+    backend:
+        driver: bridge
